@@ -8,6 +8,6 @@
 
 ## Технологии
 - Бэк: Python + FastAPI
-- Фронт: HTML/CSS
-- База: (выберем потом)
+- Фронт: HTML/CSS/JS
+- База данных: SQLite
 - CI/CD: GitHub
