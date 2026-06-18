@@ -1,25 +1,37 @@
-name: CI Checks
+name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ develop, main ]
   pull_request:
     branches: [ main ]
 
 jobs:
-  build:
+  backend-checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      
-      - name: Check Python syntax
+
+      - name: Install dependencies
         run: |
-          python -m py_compile src/*.py || echo "No Python files yet"
-      
-      - name: Print success
-        run: echo "CI is working fine!"
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || echo "No requirements.txt yet"
+
+      - name: Lint with flake8
+        run: |
+          pip install flake8
+          flake8 src/ --count --max-complexity=10 --max-line-length=127 --statistics || echo "No src/ folder yet"
+
+      - name: Run tests with pytest
+        run: |
+          pip install pytest pytest-cov
+          pytest tests/ --cov=src --cov-report=xml || echo "No tests yet"
+
+      - name: Check if app can import
+        run: |
+          python -c "import src.main" || echo "src/main.py not found yet"
