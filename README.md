@@ -8,8 +8,29 @@
 - База данных: SQLite
 - Фронтенд: HTML/CSS + JS
 
+## Структура проекта
+`src/` — бэкенд (Python/FastAPI)
+    `src/main.py` — точка входа
+    `src/database.py` — подключение к БД
+    `src/models.py` — модели SQLAlchemy
+`frontend/` — фронтенд (HTML/CSS/JS)
+    `frontend/index.html` — главная страница
+    `frontend/style.css` — стили
+    `frontend/script.js` — JavaScript
+`tests/` — тесты (пока пусто)
+
 ## Как запустить проект локально
-(инструкция появится позже)
+1. Установи зависимости в терминале:
+
+pip install -r requirements.txt
+
+2. Запусти сервер:
+
+uvicorn src.main:app --reload
+
+3. Открой в браузере: 
+
+http://localhost:8000
 
 ## Как запустить тесты
 (инструкция появится позже)
