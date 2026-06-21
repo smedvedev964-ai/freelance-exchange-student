@@ -1,135 +1,71 @@
+"""
+Главный модуль приложения FastAPI.
+Настраивает CORS, подключает роутеры, обрабатывает ошибки.
+"""
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 
-from src.database import get_db_connection, init_db
-from src.models import OrderCreate, OrderUpdate, ResponseCreate
+from src.database import init_db
+from src.routers import users, orders, responses
 
+# ---------- Lifespan (инициализация БД при старте) ----------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    """Выполняется при запуске и остановке приложения."""
+    init_db()   # Создаёт таблицы, если их нет
     yield
 
-
+# ---------- Создание экземпляра приложения ----------
 app = FastAPI(
-    title="Student Freelance Exchange API", lifespan=lifespan
+    title="Student Freelance Exchange API",
+    description="Учебный проект биржи фриланса с аутентификацией через заголовок X-User-ID",
+    version="2.0",
+    lifespan=lifespan
 )
 
+# ---------- CORS (для доступа с фронтенда) ----------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # В продакшене заменить на конкретные домены
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.get("/")
-def main_root():
-    """Перенаправляет пользователя с главного корня сразу в Swagger документацию."""
+# ---------- Подключение роутеров ----------
+app.include_router(users.router)
+app.include_router(orders.router)
+app.include_router(responses.router)
+
+# ---------- Корневой путь -> Swagger ----------
+@app.get("/", include_in_schema=False)
+def root():
     return RedirectResponse(url="/docs")
 
+# ---------- Глобальные обработчики ошибок ----------
+@app.exception_handler(HTTPException)
+def http_exception_handler(request, exc: HTTPException):
+    """Форматирует HTTP-исключения в единый JSON-ответ."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.detail}
+    )
 
-@app.get("/orders", status_code=status.HTTP_200_OK)
-def get_all_orders():
-    """Получает список всех заказов"""
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM orders")
-        rows = cursor.fetchall()
-        return [dict(row) for row in rows]
+@app.exception_handler(RequestValidationError)
+def validation_exception_handler(request, exc: RequestValidationError):
+    """Обрабатывает ошибки валидации Pydantic."""
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={
+            "error": "Ошибка валидации данных",
+            "details": exc.errors()
+        }
+    )
 
-
-@app.post("/orders", status_code=status.HTTP_201_CREATED)
-def create_order(order: OrderCreate):
-    """Создает новый заказ"""
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO orders (title, description, budget, author_id, status)
-            VALUES (?, ?, ?, ?, 'open')
-        """,
-            (order.title, order.description, order.budget, order.author_id),
-        )
-        conn.commit()
-        order_id = cursor.lastrowid
-
-        cursor.execute("SELECT * FROM orders WHERE id = ?", (order_id,))
-        new_order = cursor.fetchone()
-        return dict(new_order)
-
-
-@app.get("/orders/{id}/responses", status_code=status.HTTP_200_OK)
-def get_order_responses(id: int):
-    """Получает список откликов на заказ с определенным id'шником"""
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT id FROM orders WHERE id = ?", (id,))
-        if not cursor.fetchone():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Заказ с id {id} не найден",
-            )
-
-        cursor.execute("SELECT * FROM responses WHERE order_id = ?", (id,))
-        rows = cursor.fetchall()
-        return [dict(row) for row in rows]
-
-
-@app.post("/orders/{id}/responses", status_code=status.HTTP_201_CREATED)
-def create_response(id: int, response: ResponseCreate):
-    """Добавляет отклик на заказ"""
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT id FROM orders WHERE id = ?", (id,))
-        if not cursor.fetchone():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Заказ с id {id} не найден",
-            )
-
-        cursor.execute(
-            """
-            INSERT INTO responses (order_id, freelancer_id, text)
-            VALUES (?, ?, ?)
-        """,
-            (id, response.freelancer_id, response.text),
-        )
-        conn.commit()
-        response_id = cursor.lastrowid
-
-        cursor.execute(
-            "SELECT * FROM responses WHERE id = ?", (response_id,)
-        )
-        new_response = cursor.fetchone()
-        return dict(new_response)
-
-
-@app.patch("/orders/{id}", status_code=status.HTTP_200_OK)
-def update_order(id: int, order_data: OrderUpdate):
-    """Изменяет статус заказа или закрепляет исполнителя"""
-
-    update_fields = order_data.model_dump(exclude_unset=True)
-
-    if not update_fields:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Не переданы поля для обновления",
-        )
-
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT * FROM orders WHERE id = ?", (id,))
-        user = cursor.fetchone()
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Заказ с id {id} не найден",
-            )
-
-        set_clause = ", ".join([f"{key} = ?" for key in update_fields.keys()])
-        query_values = list(update_fields.values()) + [id]
-
-        sql_query = f"UPDATE orders SET {set_clause} WHERE id = ?"
-        cursor.execute(sql_query, query_values)
-        conn.commit()
-
-        cursor.execute("SELECT * FROM orders WHERE id = ?", (id,))
-        updated_order = cursor.fetchone()
-        return dict(updated_order)
+# ---------- Запуск (для отладки) ----------
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("src.main:app", host="0.0.0.0", port=8000, reload=True)
