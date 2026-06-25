@@ -6,8 +6,111 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Биржа фриланса</h1>
-    <p>Скоро здесь будет интерфейс.</p>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>🎓 Freelance Exchange</h1>
+                    <span>Внутриуниверситетская биржа</span>
+                </div>
+                <nav>
+                    <button class="nav-btn active" data-tab="orders">📋 Заказы</button>
+                    <button class="nav-btn" data-tab="my-orders">📝 Мои заказы</button>
+                    <button class="nav-btn" data-tab="create">➕ Создать</button>
+                    <button class="nav-btn" data-tab="profile">👤 Профиль</button>
+                </nav>
+                <div class="auth-buttons">
+                    <button id="loginBtn" class="btn btn-primary">Войти</button>
+                    <button id="registerBtn" class="btn btn-secondary">Регистрация</button>
+                    <button id="logoutBtn" class="btn btn-danger" style="display:none;">Выйти</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Основной контент -->
+    <main class="container">
+        <!-- Вкладка: Все заказы -->
+        <section id="tab-orders" class="tab-content active">
+            <div class="filters">
+                <select id="statusFilter">
+                    <option value="">Все статусы</option>
+                    <option value="open">Открытые</option>
+                    <option value="in_progress">В работе</option>
+                    <option value="closed">Завершённые</option>
+                </select>
+                <input type="number" id="limitFilter" placeholder="Кол-во" value="10" min="1" max="50">
+                <button id="applyFilters" class="btn btn-primary">Применить</button>
+            </div>
+            <div id="ordersList" class="orders-grid">
+                <!-- Заказы будут загружены сюда -->
+            </div>
+        </section>
+
+        <!-- Вкладка: Мои заказы -->
+        <section id="tab-my-orders" class="tab-content">
+            <h2>Мои заказы</h2>
+            <div id="myOrdersList" class="orders-grid">
+                <!-- Мои заказы будут загружены сюда -->
+            </div>
+        </section>
+
+        <!-- Вкладка: Создание заказа -->
+        <section id="tab-create" class="tab-content">
+            <h2>Создать новый заказ</h2>
+            <form id="createOrderForm" class="create-form">
+                <div class="form-group">
+                    <label for="orderTitle">Название заказа *</label>
+                    <input type="text" id="orderTitle" required placeholder="Введите название">
+                </div>
+                <div class="form-group">
+                    <label for="orderDescription">Описание</label>
+                    <textarea id="orderDescription" rows="4" placeholder="Опишите задание"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="orderBudget">Бюджет (₽) *</label>
+                    <input type="number" id="orderBudget" required min="1" step="0.01" placeholder="1000">
+                </div>
+                <button type="submit" class="btn btn-success">Создать заказ</button>
+            </form>
+        </section>
+
+        <!-- Вкладка: Профиль -->
+        <section id="tab-profile" class="tab-content">
+            <h2>Мой профиль</h2>
+            <div id="profileInfo" class="profile-card">
+                <p>Загрузка профиля...</p>
+            </div>
+        </section>
+
+        <!-- Модальное окно: Детали заказа -->
+        <div id="orderModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div id="orderDetails">
+                    <!-- Детали загружаются сюда -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно: Авторизация -->
+        <div id="authModal" class="modal">
+            <div class="modal-content auth-modal">
+                <span class="close">&times;</span>
+                <div id="authForms">
+                    <!-- Формы логина/регистрации -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Подвал -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 Student Freelance Exchange. Учебный проект.</p>
+        </div>
+    </footer>
+
     <script src="script.js"></script>
 </body>
 </html>
