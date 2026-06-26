@@ -98,6 +98,11 @@ nav {
     color: #667eea;
 }
 
+.btn-primary-voiti {
+    background: grey;
+    color: #667eea;
+}
+
 .btn-primary:hover {
     transform: scale(1.05);
     box-shadow: 0 4px 15px rgba(255,255,255,0.3);

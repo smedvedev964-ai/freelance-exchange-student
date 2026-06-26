@@ -4,8 +4,9 @@
 """
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 
 from src.database import init_db
@@ -26,6 +27,8 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
+
 # ---------- CORS (для доступа с фронтенда) ----------
 app.add_middleware(
     CORSMiddleware,
@@ -43,7 +46,8 @@ app.include_router(responses.router)
 # ---------- Корневой путь -> Swagger ----------
 @app.get("/", include_in_schema=False)
 def root():
-    return RedirectResponse(url="/docs")
+    from fastapi.responses import FileResponse
+    return FileResponse("frontend/index.html")
 
 # ---------- Глобальные обработчики ошибок ----------
 @app.exception_handler(HTTPException)

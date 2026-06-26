@@ -519,7 +519,7 @@ function showLoginForm() {
                     <label>Пароль</label>
                     <input type="password" id="loginPassword" required placeholder="Введите пароль">
                 </div>
-                <button type="submit" class="btn btn-primary">Войти</button>
+                <button type="submit" class="btn btn-success">Войти</button>
             </form>
             <div style="text-align: center; margin-top: 15px;">
                 <p style="color: #636e72; margin-bottom: 10px;">Нет аккаунта?</p>
@@ -561,7 +561,7 @@ function showRegisterForm() {
             </form>
             <div style="text-align: center; margin-top: 15px;">
                 <p style="color: #636e72; margin-bottom: 10px;">Уже есть аккаунт?</p>
-                <button onclick="showLoginForm()" class="btn btn-primary" style="width: 100%;">Войти</button>
+                <button onclick="showLoginForm()" class="btn btn-secondary" style="width: 100%;">Войти</button>
             </div>
         </div>
     `;
