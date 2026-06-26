@@ -179,7 +179,7 @@ async function loadMyOrders() {
     container.innerHTML = '<p>Загрузка...</p>';
     try {
         const orders = await apiRequest('/orders');
-        const myOrders = orders.filter(o => o.author_id === currentUserId);
+        const myOrders = orders.filter(o => o.author_id === currentUserId || o.assigned_freelancer_id === currentUserId);
         if (myOrders.length === 0) {
             container.innerHTML = '<div class="empty-state"><div class="icon">📝</div><p>Вы ещё не создали ни одного заказа</p></div>';
             return;
@@ -221,7 +221,6 @@ async function openOrderDetails(orderId) {
         const order = await apiRequest(`/orders/${orderId}`);
         const isAuthor = currentUserId === order.author_id;
         const isClosed = order.status === 'closed';
-        const canTake = currentUserId && order.status === 'open' && !isAuthor;
         const authorName = usersCache[order.author_id] || ('ID ' + order.author_id);
         const freelancerName = order.assigned_freelancer_id 
             ? (usersCache[order.assigned_freelancer_id] || ('ID ' + order.assigned_freelancer_id))
@@ -257,17 +256,14 @@ async function openOrderDetails(orderId) {
             </div>
             <div class="action-buttons">
                 ${isAuthor && !isClosed ? `
-                    <button onclick="viewResponses(${order.id})" class="btn btn-warning">📨 Посмотреть отклики</button>
+                    <button onclick="viewResponses(${order.id}, ${isAuthor})" class="btn btn-warning">📨 Посмотреть отклики</button>
                     <button onclick="updateOrderStatus(${order.id}, 'closed')" class="btn btn-success">✅ Завершить</button>
                     <button onclick="deleteOrder(${order.id})" class="btn btn-danger">🗑️ Удалить</button>
                 ` : ''}
                 ${isAuthor && isClosed ? `
                     <p style="color: #2ecc71; font-weight: 600;">✅ Заказ завершён</p>
                 ` : ''}
-                ${canTake ? `
-                    <button onclick="takeOrder(${order.id})" class="btn btn-success">📥 Взять заказ</button>
-                ` : ''}
-                ${!isAuthor && currentUserId && !isClosed ? `
+                ${!isAuthor && currentUserId && order.status === 'open' ? `
                     <button onclick="showResponseForm(${order.id})" class="btn btn-outline">💬 Откликнуться</button>
                 ` : ''}
                 ${isClosed && !isAuthor ? `
@@ -285,7 +281,7 @@ async function openOrderDetails(orderId) {
 }
 
 // ===== ОТКЛИКИ =====
-async function viewResponses(orderId) {
+async function viewResponses(orderId, isAuthor) {
     const modal = document.getElementById('responsesModal');
     const container = document.getElementById('responsesList');
     modal.style.display = 'block';
@@ -306,8 +302,9 @@ async function viewResponses(orderId) {
                     <div class="response-author">👤 ${escapeHtml(freelancerName)}</div>
                     <div class="response-text">${escapeHtml(resp.text)}</div>
                     <div class="response-actions">
-                        <button onclick="assignFreelancer(${resp.order_id}, ${resp.freelancer_id})" class="btn btn-success btn-sm">✅ Назначить исполнителем</button>
-                    </div>
+                        ${isAuthor ? `
+                            <button onclick="assignFreelancer(${resp.order_id}, ${resp.freelancer_id})" class="btn btn-success btn-sm">✅ Назначить исполнителем</button>
+                        ` : ''}
                 </div>
             `;
         }
@@ -361,31 +358,25 @@ async function deleteOrder(orderId) {
     }
 }
 
-async function takeOrder(orderId) {
-    if (!confirm('Взять этот заказ в работу?')) return;
-    try {
-        await apiRequest(`/orders/${orderId}`, 'PATCH', {
-            status: 'in_progress',
-            assigned_freelancer_id: currentUserId
-        });
-        showSuccess('Вы взяли заказ в работу!');
-        closeModal('orderModal');
-        loadOrders();
-        loadMyOrders();
-    } catch (error) {
-        showError(error.message);
-    }
-}
-
 async function showResponseForm(orderId) {
     const area = document.getElementById('responseArea');
-    area.innerHTML = `
-        <h4>💬 Оставить отклик</h4>
-        <div class="form-group">
-            <textarea id="responseText" rows="3" placeholder="Почему вы подходите для этого заказа?" style="width:100%;padding:10px;border:2px solid #e0e0e0;border-radius:8px;"></textarea>
-        </div>
-        <button onclick="sendResponse(${orderId})" class="btn btn-primary">📤 Отправить отклик</button>
-    `;
+    try {
+        const responses = await apiRequest(`/orders/${orderId}/responses`);
+        const hasResponded = responses.some(r => r.freelancer_id === currentUserId);
+        if (hasResponded) {
+            area.innerHTML = '<p style="color: #f39c12;">✅ Вы уже откликнулись на этот заказ.</p>';
+            return;
+        }
+        area.innerHTML = `
+            <h4>💬 Оставить отклик</h4>
+            <div class="form-group">
+                <textarea id="responseText" rows="3" placeholder="Почему вы подходите для этого заказа?" style="width:100%;padding:10px;border:2px solid #e0e0e0;border-radius:8px;"></textarea>
+            </div>
+            <button onclick="sendResponse(${orderId})" class="btn btn-primary">📤 Отправить отклик</button>
+        `;
+    } catch (e) {
+        area.innerHTML = '<p style="color: red;">❌ Ошибка загрузки откликов</p>';
+    }
 }
 
 async function sendResponse(orderId) {
