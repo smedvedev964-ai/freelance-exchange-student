@@ -2,10 +2,12 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Биржа фриланса для студентов</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Freelance Exchange</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Шапка -->
     <header>
         <div class="container">
             <div class="header-content">
@@ -21,7 +23,6 @@
                 </nav>
                 <div class="auth-buttons">
                     <button id="loginBtn" class="btn btn-primary">Войти</button>
-                    <button id="registerBtn" class="btn btn-secondary">Регистрация</button>
                     <button id="logoutBtn" class="btn btn-danger" style="display:none;">Выйти</button>
                 </div>
             </div>
@@ -98,7 +99,17 @@
             <div class="modal-content auth-modal">
                 <span class="close">&times;</span>
                 <div id="authForms">
-                    <!-- Формы логина/регистрации -->
+                    <!-- Формы логина -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно: Отклики -->
+        <div id="responsesModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div id="responsesList">
+                    <!-- Отклики загружаются сюда -->
                 </div>
             </div>
         </div>

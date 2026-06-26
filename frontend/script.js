@@ -5,6 +5,7 @@ const API_BASE = 'http://localhost:8000';
 let currentUserId = localStorage.getItem('userId') ? parseInt(localStorage.getItem('userId')) : null;
 let currentUsername = localStorage.getItem('username') || null;
 let currentTab = 'orders';
+let usersCache = {};
 
 // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
 function getHeaders() {
@@ -46,6 +47,13 @@ function getStatusText(status) {
     return map[status] || status;
 }
 
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // ===== API ЗАПРОСЫ =====
 async function apiRequest(endpoint, method = 'GET', body = null) {
     try {
@@ -78,6 +86,7 @@ async function login(username, password) {
         currentUsername = data.username;
         localStorage.setItem('userId', currentUserId);
         localStorage.setItem('username', currentUsername);
+        usersCache[currentUserId] = currentUsername;
         updateAuthUI();
         showSuccess('Добро пожаловать, ' + currentUsername + '!');
         closeAuthModal();
@@ -117,18 +126,15 @@ function logout() {
 
 function updateAuthUI() {
     const loginBtn = document.getElementById('loginBtn');
-    const registerBtn = document.getElementById('registerBtn');
     const logoutBtn = document.getElementById('logoutBtn');
     const navBtns = document.querySelectorAll('.nav-btn');
 
     if (currentUserId) {
         loginBtn.style.display = 'none';
-        registerBtn.style.display = 'none';
         logoutBtn.style.display = 'inline-block';
         navBtns.forEach(btn => btn.style.display = 'inline-block');
     } else {
         loginBtn.style.display = 'inline-block';
-        registerBtn.style.display = 'inline-block';
         logoutBtn.style.display = 'none';
         navBtns.forEach(btn => {
             if (btn.dataset.tab === 'orders') {
@@ -137,7 +143,6 @@ function updateAuthUI() {
                 btn.style.display = 'none';
             }
         });
-        // Переключиться на вкладку заказов
         switchTab('orders');
     }
 }
@@ -158,7 +163,8 @@ async function loadOrders(status = '', limit = 10) {
             container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Заказов пока нет</p></div>';
             return;
         }
-        container.innerHTML = orders.map(order => renderOrderCard(order)).join('');
+        
+        container.innerHTML = (await Promise.all(orders.map(order => renderOrderCard(order)))).join('');
     } catch (error) {
         container.innerHTML = '<p style="color: red;">❌ ' + error.message + '</p>';
     }
@@ -178,17 +184,18 @@ async function loadMyOrders() {
             container.innerHTML = '<div class="empty-state"><div class="icon">📝</div><p>Вы ещё не создали ни одного заказа</p></div>';
             return;
         }
-        container.innerHTML = myOrders.map(order => renderOrderCard(order)).join('');
+        container.innerHTML = (await Promise.all(myOrders.map(order => renderOrderCard(order)))).join('');
     } catch (error) {
         container.innerHTML = '<p style="color: red;">❌ ' + error.message + '</p>';
     }
 }
 
-function renderOrderCard(order) {
+async function renderOrderCard(order) {
     const statusClass = 'status-' + order.status;
     const statusText = getStatusText(order.status);
     const budget = order.budget ? order.budget.toLocaleString() + ' ₽' : '—';
     const description = order.description || 'Описание отсутствует';
+    const authorName = usersCache[order.author_id] || ('ID ' + order.author_id);
     
     return `
         <div class="order-card" onclick="openOrderDetails(${order.id})">
@@ -198,15 +205,9 @@ function renderOrderCard(order) {
                 <span class="budget">${budget}</span>
                 <span class="status-badge ${statusClass}">${statusText}</span>
             </div>
-            <div class="author">👤 Автор: ID ${order.author_id}</div>
+            <div class="author">👤 Автор: ${escapeHtml(authorName)}</div>
         </div>
     `;
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 // ===== ДЕТАЛИ ЗАКАЗА =====
@@ -219,7 +220,12 @@ async function openOrderDetails(orderId) {
     try {
         const order = await apiRequest(`/orders/${orderId}`);
         const isAuthor = currentUserId === order.author_id;
+        const isClosed = order.status === 'closed';
         const canTake = currentUserId && order.status === 'open' && !isAuthor;
+        const authorName = usersCache[order.author_id] || ('ID ' + order.author_id);
+        const freelancerName = order.assigned_freelancer_id 
+            ? (usersCache[order.assigned_freelancer_id] || ('ID ' + order.assigned_freelancer_id))
+            : '—';
         
         details.innerHTML = `
             <h2>${escapeHtml(order.title)}</h2>
@@ -237,12 +243,12 @@ async function openOrderDetails(orderId) {
             </div>
             <div class="detail-row">
                 <span class="detail-label">👤 Автор</span>
-                <span class="detail-value">ID ${order.author_id}</span>
+                <span class="detail-value">${escapeHtml(authorName)}</span>
             </div>
             ${order.assigned_freelancer_id ? `
                 <div class="detail-row">
                     <span class="detail-label">👨‍💻 Исполнитель</span>
-                    <span class="detail-value">ID ${order.assigned_freelancer_id}</span>
+                    <span class="detail-value">${escapeHtml(freelancerName)}</span>
                 </div>
             ` : ''}
             <div class="detail-row">
@@ -250,25 +256,81 @@ async function openOrderDetails(orderId) {
                 <span class="detail-value">${formatDate(order.created_at)}</span>
             </div>
             <div class="action-buttons">
-                ${isAuthor ? `
-                    <button onclick="updateOrderStatus(${order.id}, 'in_progress')" class="btn btn-primary" ${order.status === 'closed' ? 'disabled' : ''}>Взять в работу</button>
-                    <button onclick="updateOrderStatus(${order.id}, 'closed')" class="btn btn-success" ${order.status === 'closed' ? 'disabled' : ''}>Завершить</button>
-                    <button onclick="deleteOrder(${order.id})" class="btn btn-danger">Удалить</button>
+                ${isAuthor && !isClosed ? `
+                    <button onclick="viewResponses(${order.id})" class="btn btn-warning">📨 Посмотреть отклики</button>
+                    <button onclick="updateOrderStatus(${order.id}, 'closed')" class="btn btn-success">✅ Завершить</button>
+                    <button onclick="deleteOrder(${order.id})" class="btn btn-danger">🗑️ Удалить</button>
+                ` : ''}
+                ${isAuthor && isClosed ? `
+                    <p style="color: #2ecc71; font-weight: 600;">✅ Заказ завершён</p>
                 ` : ''}
                 ${canTake ? `
                     <button onclick="takeOrder(${order.id})" class="btn btn-success">📥 Взять заказ</button>
                 ` : ''}
-                ${!isAuthor && currentUserId ? `
+                ${!isAuthor && currentUserId && !isClosed ? `
                     <button onclick="showResponseForm(${order.id})" class="btn btn-outline">💬 Откликнуться</button>
                 ` : ''}
+                ${isClosed && !isAuthor ? `
+                    <p style="color: #636e72;">🔒 Заказ завершён, отклики недоступны</p>
+                ` : ''}
                 ${!currentUserId ? `
-                    <p style="color: #636e72;">Войдите, чтобы взаимодействовать с заказом</p>
+                    <p style="color: #636e72;">🔒 Войдите, чтобы взаимодействовать с заказом</p>
                 ` : ''}
             </div>
             <div id="responseArea" style="margin-top:20px;"></div>
         `;
     } catch (error) {
         details.innerHTML = '<p style="color: red;">❌ ' + error.message + '</p>';
+    }
+}
+
+// ===== ОТКЛИКИ =====
+async function viewResponses(orderId) {
+    const modal = document.getElementById('responsesModal');
+    const container = document.getElementById('responsesList');
+    modal.style.display = 'block';
+    container.innerHTML = '<p>Загрузка...</p>';
+    
+    try {
+        const responses = await apiRequest(`/orders/${orderId}/responses`);
+        if (!responses || responses.length === 0) {
+            container.innerHTML = '<div class="empty-state"><div class="icon">💬</div><p>Откликов пока нет</p></div>';
+            return;
+        }
+        
+        let html = '<h2>📨 Отклики на заказ</h2>';
+        for (const resp of responses) {
+            const freelancerName = usersCache[resp.freelancer_id] || ('ID ' + resp.freelancer_id);
+            html += `
+                <div class="response-item">
+                    <div class="response-author">👤 ${escapeHtml(freelancerName)}</div>
+                    <div class="response-text">${escapeHtml(resp.text)}</div>
+                    <div class="response-actions">
+                        <button onclick="assignFreelancer(${resp.order_id}, ${resp.freelancer_id})" class="btn btn-success btn-sm">✅ Назначить исполнителем</button>
+                    </div>
+                </div>
+            `;
+        }
+        container.innerHTML = html;
+    } catch (error) {
+        container.innerHTML = '<p style="color: red;">❌ ' + error.message + '</p>';
+    }
+}
+
+async function assignFreelancer(orderId, freelancerId) {
+    if (!confirm('Назначить этого фрилансера исполнителем?')) return;
+    try {
+        await apiRequest(`/orders/${orderId}`, 'PATCH', {
+            status: 'in_progress',
+            assigned_freelancer_id: freelancerId
+        });
+        showSuccess('Исполнитель назначен!');
+        closeModal('responsesModal');
+        closeModal('orderModal');
+        loadOrders();
+        loadMyOrders();
+    } catch (error) {
+        showError(error.message);
     }
 }
 
@@ -318,11 +380,11 @@ async function takeOrder(orderId) {
 async function showResponseForm(orderId) {
     const area = document.getElementById('responseArea');
     area.innerHTML = `
-        <h4>Оставить отклик</h4>
+        <h4>💬 Оставить отклик</h4>
         <div class="form-group">
             <textarea id="responseText" rows="3" placeholder="Почему вы подходите для этого заказа?" style="width:100%;padding:10px;border:2px solid #e0e0e0;border-radius:8px;"></textarea>
         </div>
-        <button onclick="sendResponse(${orderId})" class="btn btn-primary">Отправить отклик</button>
+        <button onclick="sendResponse(${orderId})" class="btn btn-primary">📤 Отправить отклик</button>
     `;
 }
 
@@ -381,6 +443,7 @@ async function loadProfile() {
     }
     try {
         const user = await apiRequest('/auth/users/me');
+        usersCache[user.id] = user.username;
         container.innerHTML = `
             <p><strong>👤 Имя:</strong> ${escapeHtml(user.username)}</p>
             <p><strong>📧 Email:</strong> ${escapeHtml(user.email)}</p>
@@ -395,16 +458,12 @@ async function loadProfile() {
 // ===== НАВИГАЦИЯ =====
 function switchTab(tabId) {
     currentTab = tabId;
-    // Скрыть все вкладки
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    // Показать нужную
     const target = document.getElementById('tab-' + tabId);
     if (target) target.classList.add('active');
-    // Обновить кнопки
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === tabId);
     });
-    // Загрузить данные
     if (tabId === 'orders') loadOrders();
     if (tabId === 'my-orders') loadMyOrders();
     if (tabId === 'profile') loadProfile();
@@ -440,7 +499,7 @@ window.addEventListener('click', function(e) {
     }
 });
 
-// ===== АВТОРИЗАЦИЯ В МОДАЛКЕ =====
+// ===== АВТОРИЗАЦИЯ =====
 function openAuthModal() {
     document.getElementById('authModal').style.display = 'block';
     showLoginForm();
@@ -462,8 +521,9 @@ function showLoginForm() {
                 </div>
                 <button type="submit" class="btn btn-primary">Войти</button>
             </form>
-            <div class="auth-switch">
-                Нет аккаунта? <a onclick="showRegisterForm()">Зарегистрироваться</a>
+            <div style="text-align: center; margin-top: 15px;">
+                <p style="color: #636e72; margin-bottom: 10px;">Нет аккаунта?</p>
+                <button onclick="showRegisterForm()" class="btn btn-secondary" style="width: 100%;">Зарегистрироваться</button>
             </div>
         </div>
     `;
@@ -499,8 +559,9 @@ function showRegisterForm() {
                 </div>
                 <button type="submit" class="btn btn-success">Зарегистрироваться</button>
             </form>
-            <div class="auth-switch">
-                Уже есть аккаунт? <a onclick="showLoginForm()">Войти</a>
+            <div style="text-align: center; margin-top: 15px;">
+                <p style="color: #636e72; margin-bottom: 10px;">Уже есть аккаунт?</p>
+                <button onclick="showLoginForm()" class="btn btn-primary" style="width: 100%;">Войти</button>
             </div>
         </div>
     `;
@@ -523,13 +584,9 @@ function closeAuthModal() {
 
 // ===== ИНИЦИАЛИЗАЦИЯ =====
 document.getElementById('loginBtn').addEventListener('click', openAuthModal);
-document.getElementById('registerBtn').addEventListener('click', openAuthModal);
 document.getElementById('logoutBtn').addEventListener('click', logout);
 
-// Загрузка при старте
 updateAuthUI();
 loadOrders();
 
 console.log('🚀 Student Freelance Exchange загружен!');
-console.log('📌 API Base:', API_BASE);
-console.log('👤 Текущий пользователь:', currentUserId || 'Не авторизован');
