@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+pytest
+pytest-cov
+requests
+python-dotenv
+python-multipart
+pydantic[email]
