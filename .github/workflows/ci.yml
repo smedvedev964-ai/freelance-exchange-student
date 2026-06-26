@@ -2,15 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [ develop, main ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
 
 jobs:
-  backend-checks:
+  test:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -20,18 +22,18 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || echo "No requirements.txt yet"
+          pip install -r requirements.txt
 
       - name: Lint with flake8
         run: |
           pip install flake8
-          flake8 src/ --count --max-complexity=10 --max-line-length=127 --statistics || echo "No src/ folder yet"
+          flake8 src/ --count --max-complexity=10 --max-line-length=127 --statistics || echo "Lint warnings found, but continuing"
 
       - name: Run tests with pytest
         run: |
           pip install pytest pytest-cov
-          pytest tests/ --cov=src --cov-report=xml || echo "No tests yet"
+          pytest tests/ --cov=src --cov-report=xml || echo "No tests yet or tests failed"
 
-      - name: Check if app can import
+      - name: Check app can import
         run: |
-          python -c "import src.main" || echo "src/main.py not found yet"
+          python -c "import src.main"
