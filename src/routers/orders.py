@@ -50,16 +50,21 @@ def get_all_orders(
     """
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        query = "SELECT * FROM orders"
+        query = """
+            SELECT 
+                orders.*,
+                users.username as author_username,
+                assignee.username as assigned_freelancer_username
+            FROM orders
+            LEFT JOIN users ON orders.author_id = users.id
+            LEFT JOIN users assignee ON orders.assigned_freelancer_id = assignee.id
+        """
         params = []
-
         if status:
-            query += " WHERE status = ?"
+            query += " WHERE orders.status = ?"
             params.append(status)
-
-        query += " ORDER BY id DESC LIMIT ? OFFSET ?"
+        query += " ORDER BY orders.id DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
-
         cursor.execute(query, params)
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
@@ -69,7 +74,19 @@ def get_order_by_id(order_id: int):
     """Возвращает один заказ по его ID."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        order = check_order_exists(cursor, order_id)
+        cursor.execute("""
+            SELECT 
+                orders.*,
+                users.username as author_username,
+                assignee.username as assigned_freelancer_username
+            FROM orders
+            LEFT JOIN users ON orders.author_id = users.id
+            LEFT JOIN users assignee ON orders.assigned_freelancer_id = assignee.id
+            WHERE orders.id = ?
+        """, (order_id,))
+        order = cursor.fetchone()
+        if not order:
+            raise HTTPException(status_code=404, detail="Заказ не найден")
         return dict(order)
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -93,7 +110,16 @@ def create_order(
         conn.commit()
         order_id = cursor.lastrowid
 
-        cursor.execute("SELECT * FROM orders WHERE id = ?", (order_id,))
+        cursor.execute("""
+            SELECT 
+                orders.*,
+                users.username as author_username,
+                assignee.username as assigned_freelancer_username
+            FROM orders
+            LEFT JOIN users ON orders.author_id = users.id
+            LEFT JOIN users assignee ON orders.assigned_freelancer_id = assignee.id
+            WHERE orders.id = ?
+        """, (order_id,))
         new_order = cursor.fetchone()
         return dict(new_order)
 
@@ -156,8 +182,17 @@ def update_order(
         cursor.execute(f"UPDATE orders SET {set_clause} WHERE id = ?", query_values)
         conn.commit()
 
-        # Возвращаем обновлённый заказ
-        cursor.execute("SELECT * FROM orders WHERE id = ?", (order_id,))
+        # Возвращаем обновлённый заказ с именами
+        cursor.execute("""
+            SELECT 
+                orders.*,
+                users.username as author_username,
+                assignee.username as assigned_freelancer_username
+            FROM orders
+            LEFT JOIN users ON orders.author_id = users.id
+            LEFT JOIN users assignee ON orders.assigned_freelancer_id = assignee.id
+            WHERE orders.id = ?
+        """, (order_id,))
         updated_order = cursor.fetchone()
         return dict(updated_order)
 
