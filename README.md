@@ -10,27 +10,26 @@
 
 ## Структура проекта
 
-`src/` — бэкенд (Python/FastAPI)
-    `src/main.py` — точка входа
-    `src/database.py` — подключение к БД, создание таблиц
-    `src/models.py` — Pydantic-схемы
-    `src/auth.py` — хеширование, зависимость для получения user_id
-    `src/routers/` — папка с роутерами (контроллерами)
-        `src/routers/__init__.py` — делает папку пакетом
-        `src/routers/users.py` — эндпоинты /auth/register, /auth/login, /users/me
-        `src/routers/orders.py` — эндпоинты /orders (CRUD + пагинация + проверки)
-        `src/routers/responses.py` — эндпоинты /orders/{id}/responses (создание, удаление)
+- src/
+   - main.py — точка входа
+   - database.py — подключение к БД
+   - models.py — Pydantic-схемы
+   - auth.py — авторизация
+   - routers/
+     - users.py — пользователи
+     - orders.py — заказы
+     - responses.py — отклики
 
-`frontend/` — фронтенд (HTML/CSS/JS)
-    `frontend/index.html` — главная страница
-    `frontend/style.css` — стили
-    `frontend/script.js` — JavaScript
+frontend/
+    index.html
+    style.css
+    script.js
 
-`tests/` — автоматические тесты API (pytest, FastAPI TestClient)  
-    `tests/conftest.py` — общие фикстуры (TestClient, подготовка тестовой БД)  
-    `tests/test_users.py` — тесты регистрации, логина и профиля пользователя  
-    `tests/test_orders.py` — тесты создания, получения, удаления заказов  
-    `tests/test_responses.py` — тесты откликов на заказы (создание, удаление)
+tests/
+    conftest.py
+    test_users.py
+    test_orders.py
+    test_responses.py
 
 ## Как запустить проект локально
 
