@@ -143,7 +143,7 @@ function updateAuthUI() {
                 btn.style.display = 'none';
             }
         });
-        switchTab('orders');
+        switchTab('home');
     }
 }
 
@@ -492,6 +492,10 @@ window.addEventListener('click', function(e) {
 
 // ===== АВТОРИЗАЦИЯ =====
 function openAuthModal() {
+    if (currentUserId) {
+        switchTab('orders');
+        return;
+    }
     document.getElementById('authModal').style.display = 'block';
     showLoginForm();
 }
@@ -500,7 +504,7 @@ function showLoginForm() {
     const container = document.getElementById('authForms');
     container.innerHTML = `
         <div class="auth-form">
-            <h2>🔐 Вход</h2>
+            <h2>Вход</h2>
             <form id="loginForm">
                 <div class="form-group">
                     <label>Имя пользователя</label>
@@ -577,7 +581,24 @@ function closeAuthModal() {
 document.getElementById('loginBtn').addEventListener('click', openAuthModal);
 document.getElementById('logoutBtn').addEventListener('click', logout);
 
-updateAuthUI();
-loadOrders();
+// Кнопка в герое
+const heroBtn = document.querySelector('.hero-btn');
+if (heroBtn) {
+    heroBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (currentUserId) {
+            switchTab('orders');
+        } else {
+            openAuthModal();
+        }
+    });
+}
 
-console.log('🚀 Student Freelance Exchange загружен!');
+updateAuthUI();
+
+// Загружаем заказы только если активна вкладка orders
+if (currentTab === 'orders') {
+    loadOrders();
+}
+
+console.log('🚀 FreelEX загружен!');

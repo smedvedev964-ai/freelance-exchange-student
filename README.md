@@ -19,10 +19,12 @@
      - users.py — пользователи
      - orders.py — заказы
      - responses.py — отклики
+
 - frontend/
    - index.html
    - style.css
    - script.js
+   
 - tests/
    - conftest.py
    - test_users.py

@@ -12,14 +12,13 @@
         <div class="container">
             <div class="header-content">
                 <div class="logo">
-                    <h1>FreelEX</h1>
-                    <span>Биржа фриланса для студентов</span>
+                    <h1 onclick="switchTab('home')" style="cursor: pointer;">FreelEX</h1>
                 </div>
                 <nav>
-                    <button class="nav-btn active" data-tab="orders">📋 Заказы</button>
-                    <button class="nav-btn" data-tab="my-orders">📝 Мои заказы</button>
-                    <button class="nav-btn" data-tab="create">➕ Создать</button>
-                    <button class="nav-btn" data-tab="profile">👤 Профиль</button>
+                    <button class="nav-btn active" data-tab="orders">Заказы</button>
+                    <button class="nav-btn" data-tab="my-orders">Мои заказы</button>
+                    <button class="nav-btn" data-tab="create">Создать</button>
+                    <button class="nav-btn" data-tab="profile">Профиль</button>
                 </nav>
                 <div class="auth-buttons">
                     <button id="loginBtn" class="btn btn-primary">Войти</button>
@@ -31,8 +30,25 @@
 
     <!-- Основной контент -->
     <main class="container">
-        <!-- Вкладка: Все заказы -->
-        <section id="tab-orders" class="tab-content active">
+        <!-- Вкладка: Главная (приветственная) -->
+        <section id="tab-home" class="tab-content active">
+            <div class="hero-section">
+                <div class="hero-overlay"></div>
+                <div class="hero-content">
+                    <h1>FreelEX</h1>
+                    <p>Биржа фриланса для студентов</p>
+                    <p style="font-size: 1rem; opacity: 0.8; margin-top: -10px; margin-bottom: 20px;">
+                        Находи заказы от компаний-партнёров университета или публикуй свои
+                    </p>
+                    <div class="hero-actions">
+                        <button class="btn btn-primary hero-btn">Начать работу</button>
+                        <button onclick="switchTab('orders')" class="btn btn-primary hero-btn">Смотреть заказы</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-orders" class="tab-content">
             <div class="filters">
                 <select id="statusFilter">
                     <option value="">Все статусы</option>
@@ -44,7 +60,7 @@
                 <button id="applyFilters" class="btn btn-primary">Применить</button>
             </div>
             <div id="ordersList" class="orders-grid">
-                <!-- Заказы будут загружены сюда -->
+                <!-- Заказы загружаются сюда -->
             </div>
         </section>
 
@@ -114,13 +130,6 @@
             </div>
         </div>
     </main>
-
-    <!-- Подвал -->
-    <footer>
-        <div class="container">
-            <p>&copy; 2026 Student Freelance Exchange. Учебный проект.</p>
-        </div>
-    </footer>
 
     <script src="/static/script.js"></script>
 </body>
